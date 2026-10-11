@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { socket } from './socket'
 import './App.css'
 
 type Screen = 'home' | 'create' | 'join'
@@ -9,6 +10,28 @@ function App() {
   const [playerCount, setPlayerCount] = useState('4')
   const [roomCode, setRoomCode] = useState('')
   const [message, setMessage] = useState('')
+  const [serverConnected, setServerConnected] = useState(false)
+
+  useEffect(() => {
+    function handleConnect() {
+      setServerConnected(true)
+    }
+
+    function handleDisconnect() {
+      setServerConnected(false)
+    }
+
+    socket.on('connect', handleConnect)
+    socket.on('disconnect', handleDisconnect)
+
+    socket.connect()
+
+    return () => {
+      socket.off('connect', handleConnect)
+      socket.off('disconnect', handleDisconnect)
+      socket.disconnect()
+    }
+  }, [])
 
   function goToScreen(nextScreen: Screen) {
     setScreen(nextScreen)
@@ -42,7 +65,9 @@ function App() {
           <span>Sequence</span>
         </button>
 
-        <span className="nav-label">PLAY WITH FRIENDS</span>
+        <span className="nav-label">
+          {serverConnected ? 'SERVER CONNECTED' : 'CONNECTING TO SERVER...'}
+        </span>
       </nav>
 
       {screen === 'home' && (
