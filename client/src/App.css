@@ -514,3 +514,85 @@ h1 span {
     padding: 24px 20px;
   }
 }
+
+/* Multiplayer waiting room */
+
+.room-code-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0;
+  padding: 24px 16px;
+  border: 1px dashed #9eae9b;
+  border-radius: 14px;
+  background: #f4f7f1;
+}
+
+.room-code-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #667866;
+}
+
+.room-code {
+  font-size: clamp(2rem, 8vw, 3rem);
+  letter-spacing: 0.18em;
+  color: #294c32;
+  overflow-wrap: anywhere;
+}
+
+.room-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24px 0 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e1e7de;
+}
+
+.player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e1e7de;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.player-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #dfe9dc;
+  color: #294c32;
+  font-weight: 700;
+}
+
+.player-name {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.host-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #547858;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

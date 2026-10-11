@@ -1,34 +1,110 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { socket } from './socket'
 import './App.css'
+import { socket } from './socket'
+import type { PublicRoom, RoomCredentials, RoomResult } from './roomTypes'
 
-type Screen = 'home' | 'create' | 'join'
+type Screen = 'home' | 'create' | 'join' | 'lobby'
+
+const ROOM_SESSION_KEY = 'sequence-room-session'
+
+function saveRoomSession(credentials: RoomCredentials) {
+  sessionStorage.setItem(ROOM_SESSION_KEY, JSON.stringify(credentials))
+}
+
+function loadRoomSession(): RoomCredentials | null {
+  const saved = sessionStorage.getItem(ROOM_SESSION_KEY)
+
+  if (!saved) return null
+
+  try {
+    const parsed: unknown = JSON.parse(saved)
+
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'code' in parsed &&
+      'reconnectToken' in parsed &&
+      typeof parsed.code === 'string' &&
+      typeof parsed.reconnectToken === 'string'
+    ) {
+      return {
+        code: parsed.code,
+        reconnectToken: parsed.reconnectToken,
+      }
+    }
+  } catch {
+    // Ignore invalid saved data and let the user start fresh.
+  }
+
+  sessionStorage.removeItem(ROOM_SESSION_KEY)
+  return null
+}
 
 function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [displayName, setDisplayName] = useState('')
   const [playerCount, setPlayerCount] = useState('4')
   const [roomCode, setRoomCode] = useState('')
+  const [room, setRoom] = useState<PublicRoom | null>(null)
   const [message, setMessage] = useState('')
   const [serverConnected, setServerConnected] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     function handleConnect() {
       setServerConnected(true)
+
+      const credentials = loadRoomSession()
+
+      if (!credentials) return
+
+      socket.emit(
+        'room:reconnect',
+        credentials,
+        (result: RoomResult) => {
+          if (result.success && result.room) {
+            setRoom(result.room)
+            setScreen('lobby')
+            setMessage('')
+          } else {
+            sessionStorage.removeItem(ROOM_SESSION_KEY)
+            setRoom(null)
+            setScreen('home')
+            setMessage(
+              result.message ?? 'Your previous room is no longer available.',
+            )
+          }
+        },
+      )
     }
 
     function handleDisconnect() {
       setServerConnected(false)
     }
 
+    function handleRoomUpdated(updatedRoom: PublicRoom) {
+      setRoom(updatedRoom)
+    }
+
+    function handleRoomClosed(data: { message: string }) {
+      sessionStorage.removeItem(ROOM_SESSION_KEY)
+      setRoom(null)
+      setScreen('home')
+      setMessage(data.message)
+    }
+
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
+    socket.on('room:updated', handleRoomUpdated)
+    socket.on('room:closed', handleRoomClosed)
 
     socket.connect()
 
     return () => {
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
+      socket.off('room:updated', handleRoomUpdated)
+      socket.off('room:closed', handleRoomClosed)
       socket.disconnect()
     }
   }, [])
@@ -40,15 +116,71 @@ function App() {
 
   function handleCreateGame(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setMessage(
-      `Ready to host a ${playerCount}-player game as ${displayName.trim()}. Room creation will be connected in the next step.`,
+    setMessage('')
+
+    if (!serverConnected) {
+      setMessage('The server is not connected. Please try again.')
+      return
+    }
+
+    setBusy(true)
+
+    socket.emit(
+      'room:create',
+      {
+        name: displayName,
+        maxPlayers: Number(playerCount),
+      },
+      (result: RoomResult) => {
+        setBusy(false)
+
+        if (!result.success || !result.room) {
+          setMessage(result.message ?? 'Could not create the room.')
+          return
+        }
+
+        if (result.credentials) {
+          saveRoomSession(result.credentials)
+        }
+
+        setRoom(result.room)
+        setScreen('lobby')
+      },
     )
   }
 
   function handleJoinGame(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setMessage(
-      `Your details are ready, ${displayName.trim()}. Joining room ${roomCode.trim().toUpperCase()} will be connected in the next step.`,
+    setMessage('')
+
+    if (!serverConnected) {
+      setMessage('The server is not connected. Please try again.')
+      return
+    }
+
+    setBusy(true)
+
+    socket.emit(
+      'room:join',
+      {
+        name: displayName,
+        code: roomCode,
+      },
+      (result: RoomResult) => {
+        setBusy(false)
+
+        if (!result.success || !result.room) {
+          setMessage(result.message ?? 'Could not join the room.')
+          return
+        }
+
+        if (result.credentials) {
+          saveRoomSession(result.credentials)
+        }
+
+        setRoom(result.room)
+        setScreen('lobby')
+      },
     )
   }
 
@@ -106,6 +238,8 @@ function App() {
                 Join a game
               </button>
             </div>
+
+            {message && <p className="form-message" role="status">{message}</p>}
 
             <div className="features">
               <span>
@@ -206,8 +340,12 @@ function App() {
                 ))}
               </select>
 
-              <button className="primary-button form-submit" type="submit">
-                Continue <span aria-hidden="true">→</span>
+              <button
+                className="primary-button form-submit"
+                type="submit"
+                disabled={busy || !serverConnected}
+              >
+                {busy ? 'Creating...' : 'Create room →'}
               </button>
             </form>
 
@@ -252,14 +390,79 @@ function App() {
                 placeholder="Enter room code"
                 value={roomCode}
                 onChange={(event) => setRoomCode(event.target.value)}
-                maxLength={8}
+                maxLength={6}
                 required
               />
 
-              <button className="primary-button form-submit" type="submit">
-                Join room <span aria-hidden="true">→</span>
+              <button
+                className="primary-button form-submit"
+                type="submit"
+                disabled={busy || !serverConnected}
+              >
+                {busy ? 'Joining...' : 'Join room →'}
               </button>
             </form>
+
+            {message && <p className="form-message" role="status">{message}</p>}
+          </div>
+        </section>
+      )}
+
+      {screen === 'lobby' && room && (
+        <section className="lobby-section">
+          <div className="lobby-card">
+            <span className="eyebrow">ROOM CREATED</span>
+            <h1>Waiting for players</h1>
+            <p className="description">
+              Share this code with your friends so they can join your game.
+            </p>
+
+            <div className="room-code-panel">
+              <span className="room-code-label">ROOM CODE</span>
+              <strong className="room-code">{room.code}</strong>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(room.code).then(
+                    () => setMessage('Room code copied!'),
+                    () => setMessage('Copy failed. Please select the code and copy it manually.'),
+                  )
+                }}
+              >
+                Copy code
+              </button>
+            </div>
+
+            <div className="room-summary">
+              <span>Players</span>
+              <strong>
+                {room.players.length} / {room.maxPlayers}
+              </strong>
+            </div>
+
+            <div className="player-list">
+              {room.players.map((player) => (
+                <div className="player-row" key={player.id}>
+                  <span className="player-avatar">
+                    {player.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="player-name">{player.name}</span>
+                  {player.isHost && <span className="host-label">HOST</span>}
+                </div>
+              ))}
+            </div>
+
+            {room.players.length < room.maxPlayers ? (
+              <p className="form-message" role="status">
+                Waiting for {room.maxPlayers - room.players.length}{' '}
+                more {room.maxPlayers - room.players.length === 1 ? 'player' : 'players'}…
+              </p>
+            ) : (
+              <p className="form-message" role="status">
+                Everyone is here! Starting the game will be our next feature.
+              </p>
+            )}
 
             {message && <p className="form-message" role="status">{message}</p>}
           </div>
