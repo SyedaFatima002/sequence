@@ -408,3 +408,109 @@ h1 span {
     transition: none !important;
   }
 }
+
+/* Lobby screens */
+
+.brand {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.lobby-section {
+  width: min(100% - 40px, 520px);
+  margin: 48px auto 64px;
+  flex: 1;
+}
+
+.back-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 10px 0;
+  margin-bottom: 20px;
+  opacity: 0.75;
+}
+
+.back-button:hover {
+  opacity: 1;
+}
+
+.lobby-card {
+  padding: 36px;
+  border: 1px solid rgba(42, 75, 54, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 16px 48px rgba(36, 57, 40, 0.07);
+}
+
+.lobby-card h1 {
+  margin: 14px 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.1;
+}
+
+.lobby-card .description {
+  margin-bottom: 28px;
+}
+
+.lobby-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lobby-form label {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.lobby-form input,
+.lobby-form select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #d7ded5;
+  border-radius: 10px;
+  background: #fff;
+  color: #243928;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.lobby-form input:focus,
+.lobby-form select:focus {
+  outline: 2px solid #66886b;
+  outline-offset: 2px;
+}
+
+.form-submit {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.form-message {
+  margin: 20px 0 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: #edf4eb;
+  color: #294c32;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .lobby-section {
+    width: calc(100% - 28px);
+    margin-top: 28px;
+  }
+
+  .lobby-card {
+    padding: 24px 20px;
+  }
+}
